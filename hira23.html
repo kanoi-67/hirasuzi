@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ひらがな・だくおん・すうじ れんしゅう</title>
+    <style>
+        body {
+            font-family: "UD Digi Kyokasho N-R", "UD デジタル 教科書体 N-R", "UD Digi Kyokasho NK-R", "Zen Maru Gothic", Arial, sans-serif;
+            background-color: #fff7ed;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.875rem;
+            font-weight: 800;
+            color: #c2410c;
+            margin: 0 0 16px 0;
+            text-align: center;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: row; 
+            gap: 32px;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 950px;
+            margin: 0 auto;
+            touch-action: none;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            background-color: white;
+            border: 8px solid #ffedd5;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            touch-action: none;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            touch-action: none;
+        }
+
+        .menu-area {
+            width: 440px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .char-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            padding: 16px;
+            background: #ffffff;
+            border-radius: 24px;
+            min-height: 320px;
+            border: 4px solid #ffedd5;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-char {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            font-weight: bold;
+            background: #fff;
+            border: 2px solid #fed7aa;
+            border-radius: 14px;
+            color: #9a3412;
+            transition: all 0.2s;
+            cursor: pointer;
+            height: 48px; 
+        }
+
+        .btn-char.empty {
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .btn-char.active {
+            background-color: #ea580c;
+            color: white;
+            border-color: #c2410c;
+            transform: scale(1.05);
+        }
+
+        #feedback-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.3); 
+            border-radius: 16px;
+        }
+
+        .sakura-badge {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.5);
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, #ff6b6b 0%, #ee5253 100%);
+            box-shadow: 0 10px 20px rgba(238, 82, 83, 0.4), inset 0 0 20px rgba(255,255,255,0.4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .sakura-badge::before, .sakura-badge::after {
+            content: '';
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            background: inherit;
+            border-radius: 50%;
+            z-index: -1;
+        }
+        .sakura-badge::before { transform: rotate(30deg); }
+        .sakura-badge::after { transform: rotate(60deg); }
+
+        .sakura-badge .inner-petal {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            background: inherit;
+            border-radius: 50%;
+            z-index: -1;
+            transform: rotate(90deg);
+        }
+
+        #feedback-overlay.show-success .sakura-badge {
+            transform: translate(-50%, -50%) scale(1.1);
+            opacity: 1;
+        }
+
+        .manten-text {
+            color: #ffffff;
+            font-size: 2.1rem;
+            font-weight: 900;
+            text-shadow: -3px -3px 0 #d32f2f, 3px -3px 0 #d32f2f, -3px 3px 0 #d32f2f, 3px 3px 0 #d32f2f, 0 6px 12px rgba(0,0,0,0.3);
+            letter-spacing: 1px;
+            z-index: 10;
+            transform: rotate(-5deg);
+            white-space: nowrap;
+        }
+
+        .batsu-display {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 10rem;
+            font-weight: bold;
+            color: #64748b;
+            z-index: 10;
+        }
+        #feedback-overlay.show-wrong .batsu-display {
+            display: block;
+        }
+
+        .stroke-number {
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 50;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            pointer-events: none; 
+        }
+
+        #error-pointer {
+            display: none;
+            position: absolute;
+            width: 44px;
+            height: 44px;
+            background: rgba(239, 68, 68, 0.3);
+            border: 4px solid #ef4444;
+            border-radius: 50%;
+            z-index: 60;
+            pointer-events: none;
+            animation: ping-ani 1s infinite;
+        }
+
+        @keyframes ping-ani {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(1.3); opacity: 0; }
+        }
+
+        .hidden-guide {
+            opacity: 0 !important;
+        }
+
+        .status-badge {
+            padding: 8px 20px;
+            border-radius: 999px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 16px;
+            text-align: center;
+            min-width: 260px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .bg-orange-200 { background-color: #ffedd5; }
+        .text-orange-800 { color: #9a3412; }
+        .bg-blue-200 { background-color: #dbeafe; }
+        .text-blue-800 { color: #1e40af; }
+        .bg-green-200 { background-color: #dcfce7; }
+        .text-green-800 { color: #166534; }
+        .bg-red-200 { background-color: #fee2e2; }
+        .text-red-800 { color: #991b1b; }
+
+        .btn-speak-style {
+            background-color: #f97316;
+            color: white;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.1s;
+        }
+        .btn-speak-style:active { transform: scale(0.9); }
+
+        .btn-guide-style {
+            background-color: #3b82f6;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.75rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: none;
+            cursor: pointer;
+        }
+        .btn-guide-off { background-color: #94a3b8; }
+
+        .btn-clear-style {
+            background-color: #64748b;
+            color: white;
+            padding: 12px 32px;
+            border-radius: 999px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            font-size: 0.875rem;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .btn-clear-style:active { transform: scale(0.95); }
+
+        #display-char {
+            font-family: "UD Digi Kyokasho N-B", "UD デジタル 教科書体 N-B", "UD Digi Kyokasho NK-B", "Zen Maru Gothic", sans-serif;
+        }
+        
+        .suuji-font {
+            font-family: "Courier New", Courier, monospace !important;
+            font-weight: bold !important;
+        }
+
+        .tab-bar {
+            display: flex;
+            gap: 8px;
+            background-color: #ffedd5;
+            padding: 6px;
+            border-radius: 16px;
+            border: 2px solid #fed7aa;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 8px 0;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 0.875rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background-color: #ea580c;
+            color: white;
+        }
+        .tab-btn.inactive {
+            background-color: transparent;
+            color: #c2410c;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>もじ・すうじ れんしゅう</h1>
+    </header>
+
+    <main class="app-container">
+        <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;">
+            <div id="stroke-status" class="status-badge bg-orange-200 text-orange-800">じゅんびOK</div>
+            
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+                <div id="display-char" style="font-size: 3.75rem; font-weight: bold; color: #ea580c; background-color: white; width: 96px; height: 96px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; border: 4px solid #ffedd5;">あ</div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <button id="btn-speak" class="btn-speak-style">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                    </button>
+                    <button id="btn-toggle-guide" class="btn-guide-style">
+                        ガイド: ON
+                    </button>
+                </div>
+            </div>
+
+            <div class="canvas-container" id="container">
+                <canvas id="guide-canvas" width="320" height="320"></canvas>
+                <canvas id="draw-canvas" width="320" height="320"></canvas>
+                <div id="number-layer"></div>
+                <div id="error-pointer"></div>
+                
+                <div id="feedback-overlay">
+                    <div class="sakura-badge">
+                        <div class="inner-petal"></div>
+                        <div class="manten-text">マンテン！</div>
+                    </div>
+                    <div class="batsu-display">×</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 16px;">
+                <button id="btn-clear" class="btn-clear-style">やりなおす</button>
+            </div>
+        </div>
+
+        <div class="menu-area">
+            <div class="tab-bar">
+                <button id="tab-hira" class="tab-btn active">ひらがな</button>
+                <button id="tab-daku" class="tab-btn inactive">だくおん</button>
+                <button id="tab-suuji" class="tab-btn inactive">すうじ</button>
+            </div>
+            <div id="char-list" class="char-grid"></div>
+        </div>
+    </main>
+
+    <script>
+        // 文字・数字データ
+        const charData = {
+            "あ": { paths: [{s:{x:75,y:105},e:{x:245,y:105}}, {s:{x:160,y:45},e:{x:160,y:255}}, {s:{x:210,y:135},e:{x:245,y:215}}] },
+            "い": { paths: [{s:{x:80,y:90},e:{x:105,y:235}}, {s:{x:230,y:100},e:{x:245,y:195}}] },
+            "う": { paths: [{s:{x:130,y:60},e:{x:195,y:75}}, {s:{x:110,y:140},e:{x:195,y:245}}] },
+            "え": { paths: [{s:{x:145,y:55},e:{x:195,y:75}}, {s:{x:90,y:150},e:{x:255,y:245}}] },
+            "お": { paths: [{s:{x:75,y:115},e:{x:225,y:105}}, {s:{x:155,y:60},e:{x:175,y:235}}, {s:{x:235,y:85},e:{x:255,y:115}}] },
+            "か": { paths: [{s:{x:85,y:110},e:{x:125,y:245}}, {s:{x:145,y:75},e:{x:185,y:225}}, {s:{x:220,y:95},e:{x:245,y:125}}] },
+            "き": { paths: [{s:{x:95,y:105},e:{x:215,y:85}}, {s:{x:90,y:140},e:{x:195,y:125}}, {s:{x:160,y:65},e:{x:115,y:225}}, {s:{x:120,y:235},e:{x:195,y:245}}] },
+            "く": { paths: [{s:{x:220,y:75},e:{x:220,y:245}}] },
+            "け": { paths: [{s:{x:85,y:85},e:{x:85,y:235}}, {s:{x:150,y:115},e:{x:225,y:95}}, {s:{x:215,y:75},e:{x:205,y:245}}] },
+            "こ": { paths: [{s:{x:95,y:125},e:{x:215,y:135}}, {s:{x:105,y:225},e:{x:215,y:205}}] },
+            "さ": { paths: [{s:{x:95,y:115},e:{x:225,y:95}}, {s:{x:160,y:75},e:{x:125,y:215}}, {s:{x:125,y:230},e:{x:205,y:235}}] },
+            "し": { paths: [{s:{x:125,y:75},e:{x:225,y:155}}] },
+            "す": { paths: [{s:{x:75,y:105},e:{x:245,y:105}}, {s:{x:165,y:55},e:{x:135,y:255}}] },
+            "せ": { paths: [{s:{x:75,y:135},e:{x:245,y:115}}, {s:{x:215,y:95},e:{x:225,y:185}}, {s:{x:135,y:95},e:{x:165,y:245}}] },
+            "そ": { paths: [{s:{x:95,y:85},e:{x:225,y:235}}] },
+            "た": { paths: [{s:{x:75,y:125},e:{x:205,y:115}}, {s:{x:125,y:75},e:{x:105,y:225}}, {s:{x:185,y:145},e:{x:235,y:155}}, {s:{x:185,y:205},e:{x:235,y:205}}] },
+            "ち": { paths: [{s:{x:95,y:105},e:{x:225,y:95}}, {s:{x:155,y:65},e:{x:215,y:235}}] },
+            "つ": { paths: [{s:{x:95,y:125},e:{x:215,y:235}}] },
+            "て": { paths: [{s:{x:95,y:105},e:{x:185,y:235}}] },
+            "と": { paths: [{s:{x:155,y:100},e:{x:125,y:185}}, {s:{x:225,y:125},e:{x:215,y:235}}] },
+            "な": { paths: [{s:{x:75,y:115},e:{x:165,y:105}}, {s:{x:125,y:75},e:{x:105,y:155}}, {s:{x:215,y:95},e:{x:235,y:125}}, {s:{x:195,y:175},e:{x:225,y:235}}] },
+            "に": { paths: [{s:{x:85,y:85},e:{x:85,y:245}}, {s:{x:165,y:125},e:{x:235,y:115}}, {s:{x:165,y:215},e:{x:235,y:195}}] },
+            "ぬ": { paths: [{s:{x:125,y:105},e:{x:205,y:225}}, {s:{x:155,y:75},e:{x:245,y:215}}] },
+            "ね": { paths: [{s:{x:115,y:65},e:{x:115,y:255}}, {s:{x:85,y:125},e:{x:245,y:215}}] },
+            "の": { paths: [{s:{x:185,y:125},e:{x:235,y:215}}] },
+            "は": { paths: [{s:{x:85,y:85},e:{x:85,y:245}}, {s:{x:155,y:115},e:{x:235,y:105}}, {s:{x:195,y:75},e:{x:185,y:225}}] },
+            "ひ": { paths: [{s:{x:85,y:125},e:{x:225,y:135}}] },
+            "ふ": { paths: [{s:{x:165,y:75},e:{x:155,y:115}}, {s:{x:115,y:145},e:{x:145,y:245}}, {s:{x:95,y:245},e:{x:75,y:255}}, {s:{x:225,y:215},e:{x:245,y:245}}] },
+            "へ": { paths: [{s:{x:75,y:205},e:{x:255,y:225}}] },
+            "ほ": { paths: [{s:{x:85,y:85},e:{x:85,y:245}}, {s:{x:155,y:105},e:{x:225,y:95}}, {s:{x:155,y:145},e:{x:225,y:135}}, {s:{x:195,y:75},e:{x:185,y:235}}] },
+            "ま": { paths: [{s:{x:95,y:105},e:{x:215,y:95}}, {s:{x:95,y:145},e:{x:215,y:135}}, {s:{x:165,y:65},e:{x:175,y:245}}] },
+            "み": { paths: [{s:{x:95,y:125},e:{x:205,y:205}}, {s:{x:195,y:115},e:{x:245,y:215}}] },
+            "む": { paths: [{s:{x:75,y:125},e:{x:235,y:115}}, {s:{x:145,y:75},e:{x:165,y:245}}, {s:{x:225,y:85},e:{x:245,y:125}}] },
+            "め": { paths: [{s:{x:135,y:105},e:{x:195,y:225}}, {s:{x:155,y:75},e:{x:245,y:225}}] },
+            "も": { paths: [{s:{x:160,y:65},e:{x:215,y:205}}, {s:{x:95,y:115},e:{x:205,y:115}}, {s:{x:95,y:165},e:{x:205,y:165}}] },
+            "や": { paths: [{s:{x:105,y:145},e:{x:225,y:215}}, {s:{x:185,y:85},e:{x:155,y:135}}, {s:{x:145,y:85},e:{x:115,y:235}}] },
+            "ゆ": { paths: [{s:{x:105,y:105},e:{x:195,y:225}}, {s:{x:205,y:75},e:{x:165,y:245}}] },
+            "よ": { paths: [{s:{x:105,y:125},e:{x:185,y:115}}, {s:{x:175,y:75},e:{x:165,y:235}}] },
+            "ら": { paths: [{s:{x:135,y:75},e:{x:175,y:95}}, {s:{x:115,y:145},e:{x:185,y:245}}] },
+            "り": { paths: [{s:{x:115,y:95},e:{x:105,y:185}}, {s:{x:205,y:85},e:{x:195,y:245}}] },
+            "る": { paths: [{s:{x:95,y:115},e:{x:195,y:215}}] },
+            "れ": { paths: [{s:{x:115,y:65},e:{x:115,y:255}}, {s:{x:85,y:125},e:{x:255,y:205}}] },
+            "ろ": { paths: [{s:{x:95,y:115},e:{x:215,y:235}}] },
+            "わ": { paths: [{s:{x:115,y:65},e:{x:115,y:255}}, {s:{x:85,y:125},e:{x:245,y:245}}] },
+            "を": { paths: [{s:{x:95,y:125},e:{x:235,y:115}}, {s:{x:155,y:85},e:{x:135,y:195}}, {s:{x:195,y:155},e:{x:215,y:245}}] },
+            "ん": { paths: [{s:{x:125,y:95},e:{x:245,y:195}}] },
+
+            "が": { paths: [{s:{x:75,y:110},e:{x:115,y:245}}, {s:{x:135,y:75},e:{x:175,y:225}}, {s:{x:210,y:95},e:{x:235,y:125}}, {s:{x:220,y:55},e:{x:235,y:70}}, {s:{x:240,y:65},e:{x:255,y:80}}] },
+            "ぎ": { paths: [{s:{x:85,y:105},e:{x:205,y:85}}, {s:{x:80,y:140},e:{x:195,y:125}}, {s:{x:150,y:65},e:{x:105,y:225}}, {s:{x:110,y:235},e:{x:185,y:245}}, {s:{x:220,y:55},e:{x:235,y:70}}, {s:{x:240,y:65},e:{x:255,y:80}}] },
+            "ぐ": { paths: [{s:{x:215,y:85},e:{x:105,y:150}}, {s:{x:225,y:55},e:{x:240,y:70}}, {s:{x:245,y:65},e:{x:260,y:80}}] },
+            "げ": { paths: [{s:{x:75,y:85},e:{x:75,y:245}}, {s:{x:140,y:115},e:{x:215,y:95}}, {s:{x:205,y:75},e:{x:195,y:245}}, {s:{x:240,y:50},e:{x:255,y:65}}, {s:{x:260,y:60},e:{x:275,y:75}}] },
+            "ご": { paths: [{s:{x:85,y:135},e:{x:205,y:145}}, {s:{x:95,y:225},e:{x:205,y:205}}, {s:{x:225,y:60},e:{x:240,y:75}}, {s:{x:245,y:70},e:{x:260,y:85}}] },
+            "ざ": { paths: [{s:{x:85,y:115},e:{x:215,y:95}}, {s:{x:150,y:75},e:{x:115,y:215}}, {s:{x:115,y:230},e:{x:195,y:235}}, {s:{x:225,y:50},e:{x:240,y:65}}, {s:{x:245,y:60},e:{x:260,y:75}}] },
+            "じ": { paths: [{s:{x:115,y:75},e:{x:215,y:155}}, {s:{x:220,y:65},e:{x:235,y:80}}, {s:{x:240,y:75},e:{x:255,y:90}}] },
+            "ず": { paths: [{s:{x:65,y:105},e:{x:235,y:105}}, {s:{x:155,y:55},e:{x:125,y:255}}, {s:{x:235,y:55},e:{x:250,y:70}}, {s:{x:255,y:65},e:{x:270,y:80}}] },
+            "ぜ": { paths: [{s:{x:65,y:135},e:{x:235,y:115}}, {s:{x:205,y:95},e:{x:215,y:185}}, {s:{x:125,y:95},e:{x:155,y:245}}, {s:{x:235,y:55},e:{x:250,y:70}}, {s:{x:255,y:65},e:{x:270,y:80}}] },
+            "ぞ": { paths: [{s:{x:85,y:105},e:{x:225,y:215}}, {s:{x:230,y:50},e:{x:245,y:65}}, {s:{x:250,y:60},e:{x:265,y:75}}] },
+            "だ": { paths: [{s:{x:65,y:125},e:{x:195,y:115}}, {s:{x:115,y:75},e:{x:95,y:225}}, {s:{x:175,y:145},e:{x:225,y:155}}, {s:{x:175,y:205},e:{x:225,y:205}}, {s:{x:230,y:55},e:{x:245,y:70}}, {s:{x:250,y:65},e:{x:265,y:80}}] },
+            "ぢ": { paths: [{s:{x:85,y:105},e:{x:215,y:95}}, {s:{x:145,y:65},e:{x:205,y:235}}, {s:{x:230,y:50},e:{x:245,y:65}}, {s:{x:250,y:60},e:{x:265,y:75}}] },
+            "づ": { paths: [{s:{x:85,y:125},e:{x:205,y:235}}, {s:{x:230,y:65},e:{x:245,y:80}}, {s:{x:250,y:75},e:{x:265,y:90}}] },
+            "で": { paths: [{s:{x:85,y:105},e:{x:205,y:225}}, {s:{x:220,y:60},e:{x:235,y:75}}, {s:{x:240,y:70},e:{x:255,y:85}}] },
+            "ど": { paths: [{s:{x:145,y:100},e:{x:115,y:185}}, {s:{x:215,y:125},e:{x:205,y:235}}, {s:{x:235,y:55},e:{x:250,y:70}}, {s:{x:255,y:65},e:{x:270,y:80}}] },
+            "ば": { paths: [{s:{x:75,y:85},e:{x:75,y:245}}, {s:{x:145,y:115},e:{x:225,y:105}}, {s:{x:185,y:75},e:{x:175,y:225}}, {s:{x:235,y:55},e:{x:250,y:70}}, {s:{x:255,y:65},e:{x:270,y:80}}] },
+            "び": { paths: [{s:{x:75,y:125},e:{x:215,y:135}}, {s:{x:220,y:60},e:{x:240,y:75}}, {s:{x:245,y:70},e:{x:260,y:85}}] },
+            "ぶ": { paths: [{s:{x:155,y:75},e:{x:145,y:115}}, {s:{x:105,y:145},e:{x:135,y:245}}, {s:{x:85,y:245},e:{x:65,y:255}}, {s:{x:215,y:215},e:{x:235,y:245}}, {s:{x:230,y:50},e:{x:245,y:65}}, {s:{x:250,y:60},e:{x:265,y:75}}] },
+            "べ": { paths: [{s:{x:65,y:205},e:{x:245,y:225}}, {s:{x:225,y:110},e:{x:240,y:125}}, {s:{x:245,y:120},e:{x:260,y:135}}] },
+            "ぼ": { paths: [{s:{x:75,y:85},e:{x:75,y:245}}, {s:{x:145,y:105},e:{x:215,y:95}}, {s:{x:145,y:145},e:{x:215,y:135}}, {s:{x:185,y:75},e:{x:175,y:235}}, {s:{x:235,y:50},e:{x:250,y:65}}, {s:{x:255,y:60},e:{x:270,y:75}}] },
+            "ぱ": { paths: [{s:{x:75,y:85},e:{x:75,y:245}}, {s:{x:145,y:115},e:{x:225,y:105}}, {s:{x:185,y:75},e:{x:175,y:225}}, {s:{x:245,y:65},e:{x:245,y:66}}] }, 
+            "ぴ": { paths: [{s:{x:75,y:125},e:{x:215,y:135}}, {s:{x:245,y:70},e:{x:245,y:71}}] },
+            "ぷ": { paths: [{s:{x:155,y:75},e:{x:145,y:115}}, {s:{x:105,y:145},e:{x:135,y:245}}, {s:{x:85,y:245},e:{x:65,y:255}}, {s:{x:215,y:215},e:{x:235,y:245}}, {s:{x:245,y:60},e:{x:245,y:61}}] },
+            "ぺ": { paths: [{s:{x:65,y:205},e:{x:245,y:225}}, {s:{x:245,y:120},e:{x:245,y:121}}] },
+            "ぽ": { paths: [{s:{x:75,y:85},e:{x:75,y:245}}, {s:{x:145,y:105},e:{x:215,y:95}}, {s:{x:145,y:145},e:{x:215,y:135}}, {s:{x:185,y:75},e:{x:175,y:235}}, {s:{x:245,y:60},e:{x:245,y:61}}] },
+
+            "１": { paths: [{s:{x:160,y:60},e:{x:160,y:260}}], offsets:[{x:0, y:0}] },
+            "２": { paths: [{s:{x:105,y:110},e:{x:225,y:245}}], offsets:[{x:0, y:0}] },
+            "３": { paths: [{s:{x:110,y:95},e:{x:115,y:225}}], offsets:[{x:0, y:0}] },
+            "４": { paths: [{s:{x:180,y:65},e:{x:240,y:185}}, {s:{x:180,y:65},e:{x:180,y:265}}], offsets:[{x:-20, y:-15}, {x:20, y:-15}] }, 
+            "５": { paths: [{s:{x:140,y:75},e:{x:220,y:210}}, {s:{x:140,y:75},e:{x:220,y:75}}], offsets:[{x:-15, y:-15}, {x:20, y:-15}] }, 
+            "６": { paths: [{s:{x:185,y:75},e:{x:170,y:215}}], offsets:[{x:0, y:0}] },
+            "７": { paths: [{s:{x:105,y:85},e:{x:105,y:125}}, {s:{x:105,y:85},e:{x:135,y:245}}], offsets:[{x:-25, y:0}, {x:15, y:-25}] }, 
+            "８": { paths: [{s:{x:185,y:100},e:{x:184,y:101}}], offsets:[{x:0, y:0}] }, 
+            "９": { paths: [{s:{x:215,y:150},e:{x:170,y:255}}], offsets:[{x:0, y:0}] },
+            "10": { paths: [{s:{x:100,y:60},e:{x:100,y:260}}, {s:{x:210,y:110},e:{x:209,y:111}}], offsets:[{x:0, y:0}, {x:0, y:0}] }
+        };
+
+        const sections = {
+            hira: [
+                ["あ", "い", "う", "え", "お"], ["か", "き", "く", "け", "こ"],
+                ["さ", "し", "す", "せ", "そ"], ["た", "ち", "つ", "て", "と"],
+                ["な", "に", "ぬ", "ね", "の"], ["は", "ひ", "ふ", "へ", "ほ"],
+                ["ま", "み", "む", "め", "も"], ["や", "", "ゆ", "", "よ"],
+                ["ら", "り", "る", "れ", "ろ"], ["わ", "", "を", "", "ん"]
+            ],
+            daku: [
+                ["が", "ぎ", "ぐ", "げ", "ご"],
+                ["ざ", "じ", "ず", "ぜ", "ぞ"],
+                ["だ", "ぢ", "づ", "で", "ど"],
+                ["ば", "び", "ぶ", "べ", "ぼ"],
+                ["ぱ", "ぴ", "ぷ", "ぺ", "ぽ"]
+            ],
+            suuji: [
+                ["１", "２", "３", "４", "５"],
+                ["６", "７", "８", "９", "10"],
+                ["", "", "", "", ""],
+                ["", "", "", "", ""],
+                ["", "", "", "", ""]
+            ]
+        };
+
+        let currentMode = "hira";
+        let currentChar = "あ";
+        let userStrokes = [];
+        let currentPoints = [];
+        let isDrawing = false;
+        let showGuide = true;
+        let isLock = false; 
+
+        let drawCanvas, guideCanvas, dctx, gctx, feedbackOverlay, errorPointer, numberLayer, btnToggleGuide, strokeStatus;
+        let audioCtx = null;
+        let isAppInitialized = false;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(freq, startTime, duration, type = 'sine', volume = 0.15) {
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, startTime);
+                gain.gain.setValueAtTime(volume, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            } catch(e) {}
+        }
+
+        function playCorrectSound() {
+            initAudio();
+            const now = audioCtx.currentTime;
+            playSound(660, now, 0.2, 'triangle', 0.25); 
+            playSound(880, now + 0.15, 0.4, 'triangle', 0.25); 
+        }
+
+        function playWrongSound() {
+            initAudio();
+            const now = audioCtx.currentTime;
+            playSound(130, now, 0.6, 'sawtooth', 0.2); 
+        }
+
+        function initApp() {
+            if (isAppInitialized) return;
+            
+            drawCanvas = document.getElementById('draw-canvas');
+            guideCanvas = document.getElementById('guide-canvas');
+            if (!drawCanvas || !guideCanvas) return;
+
+            isAppInitialized = true;
+
+            dctx = drawCanvas.getContext('2d');
+            gctx = guideCanvas.getContext('2d');
+            feedbackOverlay = document.getElementById('feedback-overlay');
+            errorPointer = document.getElementById('error-pointer');
+            numberLayer = document.getElementById('number-layer');
+            btnToggleGuide = document.getElementById('btn-toggle-guide');
+            strokeStatus = document.getElementById('stroke-status');
+
+            document.getElementById('tab-hira').addEventListener('click', () => switchMode("hira"));
+            document.getElementById('tab-daku').addEventListener('click', () => switchMode("daku"));
+            document.getElementById('tab-suuji').addEventListener('click', () => switchMode("suuji"));
+
+            document.getElementById('btn-speak').addEventListener('click', () => {
+                initAudio();
+                speak(`${currentChar}`);
+            });
+            document.getElementById('btn-clear').addEventListener('click', clearDrawing);
+            
+            btnToggleGuide.addEventListener('click', () => {
+                showGuide = !showGuide;
+                btnToggleGuide.innerText = `ガイド: ${showGuide ? 'ON' : 'OFF'}`;
+                if (showGuide) {
+                    btnToggleGuide.className = "btn-guide-style";
+                } else {
+                    btnToggleGuide.className = "btn-guide-style btn-guide-off";
+                }
+                refreshGuideDisplay();
+            });
+
+            setupCanvas();
+            switchMode("hira", false);
+        }
+
+        function switchMode(mode, shouldSpeak = false) {
+            if(isLock) return;
+            currentMode = mode;
+            
+            ["hira", "daku", "suuji"].forEach(m => {
+                const tab = document.getElementById(`tab-${m}`);
+                if (tab) tab.className = m === mode ? "tab-btn active" : "tab-btn inactive";
+            });
+
+            const targetChar = sections[mode][0][0];
+            const displayBox = document.getElementById('display-char');
+            if (displayBox) {
+                if (mode === "suuji") displayBox.classList.add('suuji-font');
+                else displayBox.classList.remove('suuji-font');
+            }
+
+            renderCharList();
+            selectChar(targetChar, shouldSpeak); 
+        }
+
+        function renderCharList() {
+            const list = document.getElementById('char-list');
+            if (!list) return;
+            list.innerHTML = '';
+            sections[currentMode].forEach(row => {
+                row.forEach(char => {
+                    const btn = document.createElement('button');
+                    if (char === "") {
+                        btn.className = "btn-char empty";
+                    } else {
+                        btn.className = `btn-char ${char === currentChar ? 'active' : ''}`;
+                        if (currentMode === "suuji") btn.classList.add('suuji-font');
+                        btn.innerText = char;
+                        btn.onclick = () => { if(!isLock) selectChar(char, true); };
+                    }
+                    list.appendChild(btn);
+                });
+            });
+        }
+
+        function selectChar(c, shouldSpeak = true) {
+            currentChar = c;
+            const displayBox = document.getElementById('display-char');
+            if (displayBox) displayBox.innerText = c;
+            
+            document.querySelectorAll('.btn-char').forEach(b => {
+                if(b.innerText === c) b.classList.add('active');
+                else b.classList.remove('active');
+            });
+            loadChar(c);
+            if (shouldSpeak) {
+                initAudio();
+                speak(c);
+            }
+        }
+
+        function loadChar(c) {
+            clearDrawing();
+            drawGuide(c);
+            renderStrokeNumbers(c);
+            refreshGuideDisplay();
+        }
+
+        function drawGuide(c) {
+            gctx.clearRect(0, 0, 320, 320);
+            gctx.strokeStyle = "#fed7aa";
+            gctx.setLineDash([4, 4]);
+            gctx.lineWidth = 1.5;
+            gctx.beginPath();
+            gctx.moveTo(160, 0); gctx.lineTo(160, 320);
+            gctx.moveTo(0, 160); gctx.lineTo(320, 160);
+            gctx.stroke();
+            gctx.setLineDash([]);
+
+            gctx.textAlign = "center";
+            gctx.textBaseline = "middle";
+            gctx.fillStyle = "#f1f5f9";
+
+            if (c === "10") {
+                gctx.font = "bold 210px 'Courier New', Courier, monospace";
+                gctx.fillText("10", 160, 160);
+                return;
+            }
+
+            if (currentMode === "suuji") {
+                gctx.font = "bold 230px 'Courier New', Courier, monospace";
+                gctx.fillText(c, 160, 160);
+            } else {
+                gctx.font = "bold 230px 'UD Digi Kyokasho N-B', 'UD デジタル 教科書体 N-B', sans-serif";
+                gctx.fillText(c, 160, 165);
+            }
+        }
+
+        function renderStrokeNumbers(c) {
+            if (!numberLayer) return;
+            numberLayer.innerHTML = '';
+            const data = charData[c];
+            if (!data) return;
+
+            data.paths.forEach((p, i) => {
+                const num = document.createElement('div');
+                num.className = 'stroke-number';
+                num.innerText = i + 1;
+                
+                let ox = 0, oy = 0;
+                if(data.offsets && data.offsets[i]) {
+                    ox = data.offsets[i].x;
+                    oy = data.offsets[i].y;
+                }
+
+                num.style.left = (p.s.x - 13 + ox) + 'px';
+                num.style.top = (p.s.y - 13 + oy) + 'px';
+                numberLayer.appendChild(num);
+            });
+        }
+
+        function refreshGuideDisplay() {
+            guideCanvas.style.opacity = showGuide ? "1" : "0";
+            if (numberLayer) {
+                numberLayer.querySelectorAll('.stroke-number').forEach(el => {
+                    el.classList.toggle('hidden-guide', !showGuide);
+                });
+            }
+        }
+
+        function updateStatus(text, className) {
+            if (!strokeStatus) return;
+            strokeStatus.innerText = text;
+            strokeStatus.className = `status-badge ${className}`;
+        }
+
+        function setupCanvas() {
+            const getPos = (e) => {
+                const rect = drawCanvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return { x: clientX - rect.left, y: clientY - rect.top };
+            };
+
+            const start = (e) => {
+                if (isLock) return;
+                initAudio();
+                isDrawing = true;
+                const pos = getPos(e);
+                currentPoints = [pos];
+
+                dctx.beginPath();
+                dctx.moveTo(pos.x, pos.y);
+                dctx.strokeStyle = currentMode === "suuji" ? "#2563eb" : "#1e293b"; 
+                dctx.lineWidth = 14;
+                dctx.lineCap = "round";
+                dctx.lineJoin = "round";
+            };
+
+            const move = (e) => {
+                if (!isDrawing || isLock) return;
+                const pos = getPos(e);
+                currentPoints.push(pos);
+                dctx.lineTo(pos.x, pos.y);
+                dctx.stroke();
+            };
+
+            const end = () => {
+                if (!isDrawing) return;
+                isDrawing = false;
+                if (currentPoints.length > 0) {
+                    userStrokes.push({
+                        start: currentPoints[0],
+                        end: currentPoints[currentPoints.length - 1],
+                        allPoints: currentPoints
+                    });
+                }
+                checkRealtimeStroke();
+            };
+
+            drawCanvas.addEventListener('mousedown', start);
+            drawCanvas.addEventListener('mousemove', move);
+            window.addEventListener('mouseup', end);
+            
+            drawCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); start(e); }, {passive: false});
+            drawCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); move(e); }, {passive: false});
+            drawCanvas.addEventListener('touchend', (e) => { e.preventDefault(); end(); });
+        }
+
+        function checkRealtimeStroke() {
+            const data = charData[currentChar];
+            if (!data) return;
+
+            const currentIndex = userStrokes.length - 1;
+            const targetPath = data.paths[currentIndex];
+            if (!targetPath) {
+                showWrong("せんが おおいよ", null);
+                return;
+            }
+
+            const userStroke = userStrokes[currentIndex];
+            const userStart = userStroke.start;
+            const userEnd = userStroke.end;
+
+            if (currentChar === "８") {
+                const distStart = Math.hypot(userStart.x - targetPath.s.x, userStart.y - targetPath.s.y);
+                if (distStart > 75) {
+                    showWrong("みぎうえ から スタートしよう！", targetPath.s);
+                    return;
+                }
+                if (userStroke.allPoints.length > 4) {
+                    const samplePoint = userStroke.allPoints[3];
+                    if (samplePoint.x > userStart.x) {
+                        showWrong("ひだりまわり に かこう！", null);
+                        return;
+                    }
+                }
+                showSuccess();
+                return;
+            }
+
+            let allowStartDist = 75;
+            if (currentChar === "10" || (currentMode === "daku" && currentIndex >= data.paths.length - 2)) {
+                allowStartDist = 100;
+            }
+            const distStart = Math.hypot(userStart.x - targetPath.s.x, userStart.y - targetPath.s.y);
+
+            if (distStart > allowStartDist) {
+                showWrong(`${currentIndex + 1}かくめの はじめが ズレてるよ`, targetPath.s);
+                return;
+            }
+
+            let allowEndDist = 110;
+            if (currentChar === "10" || (currentMode === "daku" && currentIndex >= data.paths.length - 2)) {
+                allowEndDist = 140; 
+            }
+            const distEnd = Math.hypot(userEnd.x - targetPath.e.x, userEnd.y - targetPath.e.y);
+
+            if (distEnd > allowEndDist) {
+                showWrong(`${currentIndex + 1}かくめを もっと のばそう！`, targetPath.e);
+                return;
+            }
+
+            const total = data.paths.length;
+            const remaining = total - userStrokes.length;
+
+            if (remaining > 0) {
+                updateStatus(`いいぞ！あと ${remaining}かく`, "bg-blue-200 text-blue-800");
+            } else {
+                showSuccess();
+            }
+        }
+
+        function showSuccess() {
+            isLock = true;
+            feedbackOverlay.className = "show-success";
+            feedbackOverlay.style.display = 'block';
+            updateStatus("できた！まんてん！", "bg-green-200 text-green-800");
+            playCorrectSound();
+            
+            setTimeout(() => {
+                feedbackOverlay.style.display = 'none';
+                feedbackOverlay.className = "";
+                clearDrawing();
+                isLock = false;
+            }, 1800);
+        }
+
+        function showWrong(reasonText, correctTargetPoint) {
+            isLock = true;
+            feedbackOverlay.className = "show-wrong";
+            feedbackOverlay.style.display = 'block';
+            
+            updateStatus(reasonText, "bg-red-200 text-red-800");
+            playWrongSound();
+            
+            if (correctTargetPoint && errorPointer) {
+                errorPointer.style.left = (correctTargetPoint.x - 22) + 'px';
+                errorPointer.style.top = (correctTargetPoint.y - 22) + 'px';
+                errorPointer.style.display = 'block';
+            }
+            
+            setTimeout(() => {
+                feedbackOverlay.style.display = 'none';
+                feedbackOverlay.className = "";
+                if (errorPointer) errorPointer.style.display = 'none';
+                clearDrawing();
+                isLock = false;
+            }, 3500); 
+        }
+
+        function clearDrawing() {
+            dctx.clearRect(0, 0, 320, 320);
+            userStrokes = [];
+            currentPoints = [];
+            isDrawing = false;
+            
+            const data = charData[currentChar];
+            const total = data ? data.paths.length : 1;
+            updateStatus(`あと ${total}かく`, "bg-orange-200 text-orange-800");
+        }
+
+        function speak(text) {
+            if (!window.speechSynthesis) return;
+            window.speechSynthesis.cancel();
+            
+            let reading = text;
+            if (text === "10") reading = "じゅう";
+
+            const uttr = new SpeechSynthesisUtterance(reading);
+            uttr.lang = "ja-JP";
+            uttr.rate = 0.55; 
+            uttr.pitch = 1.2;  
+            window.speechSynthesis.speak(uttr);
+        }
+
+        // 起動処理をこの安全なブロック1箇所に統合
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+    </script>
+</body>
+</html>
